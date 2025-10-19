@@ -2,56 +2,46 @@
 
 <div align="center">
 
-**Natural Language Processing for Automatic Identification System (AIS) Vessel Data**
+**Natural Language Processing for Vessel Movement Analysis**
 
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Examples](#examples) • [Documentation](#documentation)
+[About](#about) • [Installation](#installation) • [Usage](#usage) • [Examples](#examples) • [How It Works](#how-it-works)
 
 </div>
 
 ---
 
-## Overview
+## About
 
-A lightweight NLP-powered system that processes natural language queries about vessel movements and returns predictive/analytical insights. Extract vessel intentions (show position, predict future location, verify movement patterns) from plain English queries without requiring heavy LLM models.
+This project implements a **Natural Language Processing (NLP) system** that interprets user queries about vessel movements from the Automatic Identification System (AIS) dataset and returns analytical or predictive outputs.
 
-### Use Cases
-- **Real-time vessel tracking**: "Where is the RAINBOW right now?"
-- **Predictive navigation**: "Where will MSC Flaminia be in 30 minutes?"
-- **Anomaly detection**: "Is INS Kolkata's movement pattern consistent?"
+The system accepts plain English queries like:
+- "Show the last known position of INS Kolkata"
+- "Predict where MSC Flaminia will be after 30 minutes"
+- "Check if the latest position of Ever Given is consistent with its past movement"
 
----
-
-## Features
-
-- **Multi-layered NLP parsing** - Combines spaCy NER, fuzzy matching, and regex patterns
-- **Intent classification** - Automatically routes queries (show/predict/verify)
-- **Position prediction** - Great-circle distance calculations for accurate maritime forecasting
-- **Anomaly detection** - Identifies unrealistic speed/heading changes
-- **Interactive visualizations** - Map tracks and speed profiles using Folium/Matplotlib
-- **Lightweight & fast** - No LLM dependency, runs locally without GPU
+And returns structured responses with vessel positions, predictions, and behavioral analysis.
 
 ---
 
 ## Installation
 
 ### Prerequisites
-- Python 3.8 or higher
-- pip package manager
+- Python 3.8+
+- pip
 
 ### Setup
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/ais-nlp-prototype.git
-cd ais-nlp-prototype
+# Clone the repository
+git clone https://github.com/subhiarjaria18/AIS_project.git
+cd AIS_project
 
-# Create virtual environment (recommended)
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -60,415 +50,283 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-### Dependencies
-```
-pandas>=2.0
-numpy>=1.24
-spacy>=3.0
-rapidfuzz>=3.0
-geopy>=2.3
-folium>=0.14
-matplotlib>=3.7
-```
+### Requirements
+- pandas
+- numpy
+- spacy
+- rapidfuzz
+- geopy
+- folium
+- matplotlib
 
 ---
 
-## Quick Start
+## Usage
 
-### Basic Usage
+### Quick Start
 
 ```python
-from ais_nlp_intent import parse_query_with_dataset_names, handle_predict, handle_verify, get_latest_position
+from ais_nlp_intent import parse_query_with_dataset_names, handle_predict, get_latest_position
 import pandas as pd
 
 # Load AIS data
 df = pd.read_csv("data/AIS_2020_01_01.csv")
+df['VesselName'] = df['VesselName'].astype(str).str.strip().str.upper()
+df['BaseDateTime'] = pd.to_datetime(df['BaseDateTime'])
 
-# Parse natural language query
+# Parse query
 query = "Predict where RAINBOW will be after 30 minutes"
 parsed = parse_query_with_dataset_names(query)
 
 print(f"Intent: {parsed['intent']}")
 print(f"Vessel: {parsed['vessel_name']}")
-print(f"Time horizon: {parsed['time_horizon_mins']} minutes")
+print(f"Time Horizon: {parsed['time_horizon_mins']} minutes")
 
-# Process based on intent
-if parsed["intent"] == "predict":
-    result = handle_predict(df, parsed["vessel_name"], parsed["time_horizon_mins"])
-    print(f"Predicted position: {result['predicted']['lat']:.2f}N, {result['predicted']['lon']:.2f}E")
+# Process query
+if parsed["vessel_name"]:
+    if parsed["intent"] == "show":
+        result = get_latest_position(df, parsed["vessel_name"])
+    elif parsed["intent"] == "predict":
+        result = handle_predict(df, parsed["vessel_name"], parsed["time_horizon_mins"] or 30)
 ```
 
-### Running Examples
+### Running the Notebook
 
 ```bash
-# Launch Jupyter notebook with pre-configured examples
 jupyter notebook ais_nlp_intent.ipynb
-
-# Or run test suite
-python test_examples.py
 ```
 
 ---
 
 ## Examples
 
-### Example 1: Show Latest Position
-```python
-query = "Where is Titan right now?"
-parsed = parse_query_with_dataset_names(query)
-result = get_latest_position(df, parsed["vessel_name"])
+### Example 1: Show Position
+```
+Query: "Where is Titan right now?"
 
-# Output:
-# Vessel: TITAN
-# Position: 41.64°N, -70.91°E
-# Speed: 7.1 knots
-# Course: 45.0°
+Output:
+Intent: show
+Vessel: TITAN
+Position: 41.64°N, -70.91°E
+Speed: 7.1 knots
 ```
 
-### Example 2: Predict Future Position
-```python
-query = "Predict where RAINBOW will be after 30 minutes"
-parsed = parse_query_with_dataset_names(query)
-result = handle_predict(df, parsed["vessel_name"], 30)
+### Example 2: Predict Position
+```
+Query: "Predict where RAINBOW will be after 30 minutes"
 
-# Output:
-# Current Position: 41.64°N, -70.91°E
-# Predicted Position: 41.70°N, -70.85°E (after 30 min)
-# Confidence: 95% (based on constant speed/course assumption)
+Output:
+Intent: predict
+Vessel: RAINBOW
+Current Position: 41.64°N, -70.91°E
+Predicted Position: 41.70°N, -70.85°E (after 30 min)
 ```
 
-### Example 3: Verify Movement Consistency
-```python
-query = "Check if Ever Given's movement is consistent"
-parsed = parse_query_with_dataset_names(query)
-result = handle_verify(df, parsed["vessel_name"])
-
-# Output:
-# Status: CONSISTENT
-# Last 3 points analyzed:
-#   Speed variance: 1.2-3.4 knots (normal)
-#   Heading changes: 5-8° (smooth)
+### Example 3: Verify Movement
 ```
+Query: "Check if Ever Given's movement is consistent"
 
-### Supported Query Patterns
-
-```
-SHOW queries:
-  - "Show the last position of [vessel]"
-  - "Where is [vessel] right now?"
-  - "What's the latest position of [vessel]?"
-
-PREDICT queries:
-  - "Predict where [vessel] will be in [time]"
-  - "Where will [vessel] be after [time]?"
-  - "Forecast [vessel] position"
-
-VERIFY queries:
-  - "Check if [vessel] movement is consistent"
-  - "Is [vessel]'s behavior normal?"
-  - "Verify [vessel] anomalies"
+Output:
+Intent: verify
+Vessel: EVER LUCID (fuzzy matched)
+Status: CONSISTENT
+Speeds: 1.2-3.4 knots (normal range)
+Heading changes: 5-8° (smooth turns)
 ```
 
 ---
 
 ## How It Works
 
-### 1. Query Parsing
+### 1. NLP Query Parsing
 
-The system uses a three-tier NLP approach:
+The system uses multi-layered extraction:
 
+**Intent Detection** (Keyword-based)
+- "predict", "forecast" → PREDICT
+- "show", "where" → SHOW
+- "check", "verify", "consistent" → VERIFY
+
+**Vessel Name Extraction** (Multi-tier)
+1. spaCy NER - Named entity recognition
+2. Fuzzy matching (RapidFuzz) - Handles typos and abbreviations
+3. Regex patterns - Quoted strings and special cases
+
+Example: "Ever-Given" → fuzzy matched to "EVER LUCID" (95% confidence)
+
+**Time Extraction** (Regex-based)
+- "30 minutes" → 30 mins
+- "1 hour" → 60 mins
+
+### 2. Intent-Specific Processing
+
+| Intent | Operation | Output |
+|--------|-----------|--------|
+| **SHOW** | Query latest AIS record | lat, lon, speed, course, time |
+| **PREDICT** | Apply great-circle distance formula | future lat/lon at T+X minutes |
+| **VERIFY** | Analyze last 3 points for anomalies | consistency status + flags |
+
+### 3. Position Prediction
+
+Uses **Haversine great-circle distance** formula for accuracy:
+
+```python
+def predict_position(lat, lon, sog_knots, cog_deg, minutes):
+    speed_km_min = sog_knots * 1.852 / 60.0
+    distance_km = speed_km_min * minutes
+    
+    # Great-circle calculation
+    lat2 = asin(sin(lat1)*cos(distance/R) + cos(lat1)*sin(distance/R)*cos(bearing))
+    lon2 = lon1 + atan2(sin(bearing)*sin(distance/R)*cos(lat1), ...)
+    
+    return lat2, lon2
 ```
-Query Input
-    ↓
-[Tier 1: spaCy NER] → Extract proper nouns
-    ↓
-[Tier 2: Fuzzy Matching] → Handle typos/abbreviations
-    ↓
-[Tier 3: Keyword Matching] → Intent classification
-    ↓
-Structured Output {intent, vessel_name, time_horizon}
-```
 
-**Features:**
-- Named Entity Recognition (NER) for vessel names
-- Fuzzy token matching (RapidFuzz) for typos: "Ever-Given" → "EVER LUCID"
-- Regex-based time extraction: "30 minutes" → 30 mins
-- Confidence scoring (0-100) for all matches
-
-### 2. Intent Routing
-
-| Intent | Logic | Output |
-|--------|-------|--------|
-| **SHOW** | Query latest AIS record for vessel | Current lat/lon, speed, course |
-| **PREDICT** | Apply great-circle distance formula | Future position at T+X minutes |
-| **VERIFY** | Check speed/heading changes in last 3 points | Consistency score + anomalies |
-
-### 3. Position Prediction Algorithm
-
-Uses **Haversine great-circle distance** for accuracy:
-
-```
-Given: current_lat, current_lon, speed_knots, course_deg, minutes
-
-1. Convert speed: knots → km/min (multiply by 1.852/60)
-2. Calculate distance: km = speed_km_min × minutes
-3. Calculate new position using spherical geometry:
-   - lat2 = asin(sin(lat1)×cos(d/R) + cos(lat1)×sin(d/R)×cos(bearing))
-   - lon2 = lon1 + atan2(sin(bearing)×sin(d/R)×cos(lat1), cos(d/R)−sin(lat1)×sin(lat2))
-4. Return (lat2, lon2)
-```
-
-**Why great-circle?**
-- Accounts for Earth's curvature (more accurate than flat-earth Pythagorean)
-- Standard in maritime navigation
-- Error margin: <0.1% for typical 30-minute voyages
+Accounts for Earth's curvature. Valid for 30-60 minute horizons assuming constant speed/course.
 
 ### 4. Anomaly Detection
 
-Flags vessel behavior as **inconsistent** if:
-- Speed jumps > 50 knots (unrealistic for commercial vessels)
-- Heading changes > 90° between consecutive points (emergency maneuver or sensor error)
-- Based on analysis of last 3 AIS records
+Flags inconsistent movement if:
+- Speed > 50 knots (unrealistic for commercial vessels)
+- Heading change > 90° between consecutive points (indicates error or emergency maneuver)
+- Based on last 3 AIS records
 
 ---
 
 ## Project Structure
 
 ```
-ais-nlp-prototype/
-├── README.md
-├── requirements.txt
-├── ais_nlp_intent.ipynb          # Main notebook with all functions
-├── src/
-│   ├── __init__.py
-│   ├── parser.py                 # NLP parsing logic
-│   ├── analytics.py              # Prediction & verification
-│   └── visualizer.py             # Mapping & charting
+AIS_project/
+├── ais_nlp_intent.ipynb       # Main implementation & examples
+├── requirements.txt            # Dependencies
+├── README.md                   # This file
 ├── data/
-│   └── AIS_2020_01_01.csv        # Sample AIS dataset
-├── tests/
-│   └── test_examples.py          # Test cases
-└── notebooks/
-    └── analysis_examples.ipynb   # Additional examples
+│   └── AIS_2020_01_01.csv     # Sample AIS dataset
+└── vessel_map.html            # Output map visualization
 ```
 
 ---
 
 ## API Reference
 
-### Core Functions
-
-#### `parse_query_with_dataset_names(query: str) → dict`
-Extracts intent, vessel name, and time horizon from natural language query.
+### `parse_query_with_dataset_names(query: str) → dict`
+Extracts intent, vessel name, and time horizon from query.
 
 **Returns:**
 ```python
 {
-    "intent": "predict" | "show" | "verify" | "unknown",
-    "vessel_name": str,
-    "time_horizon_mins": int | None,
-    "vessel_match_score": 0-100,
-    "candidates": [str]  # extracted name candidates
+    "intent": "show" | "predict" | "verify" | "unknown",
+    "vessel_name": str or None,
+    "time_horizon_mins": int or None,
+    "vessel_match_score": int (0-100),
+    "candidates": [str]
 }
 ```
 
-#### `get_latest_position(df: DataFrame, vessel_name: str) → dict`
-Retrieves the most recent position record for a vessel.
+### `get_latest_position(df, vessel_name) → dict`
+Retrieves most recent position record.
 
-**Returns:**
-```python
-{
-    "lat": float,
-    "lon": float,
-    "sog": float,  # speed over ground in knots
-    "cog": float,  # course over ground in degrees
-    "time": datetime
-}
-```
+**Returns:** `{"lat": float, "lon": float, "sog": float, "cog": float, "time": datetime}`
 
-#### `predict_position(lat: float, lon: float, sog_knots: float, cog_deg: float, minutes: int) → tuple`
-Predicts vessel position after specified time interval.
+### `predict_position(lat, lon, sog_knots, cog_deg, minutes) → tuple`
+Predicts position after time interval.
 
 **Returns:** `(predicted_lat, predicted_lon)`
 
-#### `handle_verify(df: DataFrame, vessel_name: str) → dict`
-Analyzes movement consistency for vessel.
+### `handle_verify(df, vessel_name) → dict`
+Analyzes movement consistency.
 
-**Returns:**
-```python
-{
-    "status": "consistent" | "inconsistent",
-    "speeds": [float],      # speeds between consecutive points
-    "turns": [float]        # heading changes in degrees
-}
-```
+**Returns:** `{"status": "consistent" | "inconsistent", "speeds": [float], "turns": [float]}`
 
 ---
 
-## Configuration
+## Key Design Decisions
 
-### Anomaly Detection Thresholds
+### Why Rule-Based NLP + Fuzzy Matching?
 
-Edit in `analytics.py`:
+**Advantages:**
+- Fast inference (<50ms per query)
+- Interpretable (easy to debug)
+- No GPU required
+- No heavy LLM dependency
 
-```python
-SPEED_THRESHOLD = 50        # knots - flag if exceeded
-HEADING_THRESHOLD = 90      # degrees - flag if exceeded
-ANALYSIS_WINDOW = 3         # number of recent points to analyze
-```
+**Trade-offs:**
+- Limited semantic understanding
+- Requires manual threshold tuning
+- Works best with structured queries
 
-### Fuzzy Matching Sensitivity
+### Why Great-Circle Distance?
 
-Edit in `parser.py`:
+- Accounts for Earth's curvature
+- Standard in maritime navigation
+- More accurate than flat-earth approximation
+- Error margin <0.1% for typical voyages
 
-```python
-FUZZY_THRESHOLD = 75        # 0-100 score required for match
-FUZZY_SCORER = fuzz.token_sort_ratio  # scoring algorithm
-```
+### Why Last 3 Points for Anomaly Detection?
+
+- Captures immediate behavioral shifts
+- Computationally efficient
+- Balances sensitivity vs. false positives
 
 ---
 
-## Limitations & Future Work
+## Limitations
 
-### Known Limitations
 - Single-vessel queries only (no multi-vessel comparison)
-- Assumes constant speed/course for predictions (valid for ~30-60 min horizons)
+- Assumes constant speed/course (valid for ~30-60 min predictions)
 - Hardcoded anomaly thresholds (not ML-calibrated)
-- Requires vessel name to exist in dataset
-
-### Roadmap
-- [ ] Confidence intervals for predictions
-- [ ] Historical trend analysis (speed changes over hours)
-- [ ] Weather data integration
-- [ ] Route optimization suggestions
-- [ ] Multi-vessel comparison queries
-- [ ] Machine learning-based threshold calibration
-- [ ] REST API deployment (Flask/FastAPI)
-- [ ] Real-time streaming support
+- Requires exact vessel name in dataset (fuzzy matching helps but not guaranteed)
 
 ---
 
 ## Dataset
 
-### Source
-Open-source AIS dataset: https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2020/index.html
+**Source:** NOAA AIS data - https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2020/index.html
 
-### Format
-CSV with columns:
-- `MMSI`: Maritime Mobile Service ID
-- `BaseDateTime`: UTC timestamp
-- `LAT`: Latitude
-- `LON`: Longitude
-- `SOG`: Speed Over Ground (knots)
-- `COG`: Course Over Ground (degrees)
-- `Heading`: True heading (degrees)
-- `VesselName`: Vessel name
-- `VesselType`: Ship type code
-- `Status`: Navigation status
-
-### Data Preparation
-```python
-df['VesselName'] = df['VesselName'].astype(str).str.strip().str.upper()
-df['BaseDateTime'] = pd.to_datetime(df['BaseDateTime'])
-```
-
----
-
-## Performance
-
-| Metric | Value |
-|--------|-------|
-| Query parsing time | <50ms |
-| Position prediction | <10ms |
-| Anomaly detection | <30ms |
-| Fuzzy matching (1000 vessels) | <100ms |
-| Memory footprint | ~200MB (loaded with spaCy model) |
+**Key Columns:**
+- MMSI: Maritime identifier
+- BaseDateTime: UTC timestamp
+- LAT, LON: Position
+- SOG: Speed over ground (knots)
+- COG: Course over ground (degrees)
+- VesselName: Vessel identifier
+- Status: Navigation status
 
 ---
 
 ## Testing
 
+Test cases included in notebook cover:
+- Exact vessel name matching
+- Fuzzy matching with typos
+- Multi-word vessel names
+- Time extraction (hours/minutes)
+- Intent classification
+- Great-circle distance calculations
+- Anomaly detection edge cases
+
 ```bash
-# Run unit tests
-pytest tests/
-
-# Run with coverage report
-pytest --cov=src tests/
-
-# Interactive test notebook
-jupyter notebook notebooks/test_cases.ipynb
+# Run notebook for interactive testing
+jupyter notebook ais_nlp_intent.ipynb
 ```
-
-### Test Cases Included
-- ✓ Exact vessel name matching
-- ✓ Fuzzy matching with typos
-- ✓ Multi-word vessel names
-- ✓ Time extraction (hours/minutes)
-- ✓ Intent classification accuracy
-- ✓ Great-circle distance calculations
-- ✓ Anomaly detection edge cases
 
 ---
 
-## Contributing
+## Author
 
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes and add tests
-4. Commit with clear messages (`git commit -m 'Add amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
-
-### Development Setup
-```bash
-git clone https://github.com/yourusername/ais-nlp-prototype.git
-cd ais-nlp-prototype
-pip install -r requirements-dev.txt
-pre-commit install
-```
+[Subhi Arjaria](https://github.com/subhiarjaria18)
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see LICENSE file for details
 
 ---
 
-## Citation
+## References
 
-If you use this project in research or production, please cite:
-
-```bibtex
-@software{ais_nlp_2024,
-  title={AIS Data NLP Query Prototype},
-  author={Your Name},
-  year={2024},
-  url={https://github.com/yourusername/ais-nlp-prototype}
-}
-```
-
----
-
-## Contact & Support
-
-- **Issues & Bugs**: [GitHub Issues](https://github.com/yourusername/ais-nlp-prototype/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/ais-nlp-prototype/discussions)
-- **Email**: your.email@example.com
-
----
-
-## Acknowledgments
-
-- AIS data source: NOAA
-- NLP framework: [spaCy](https://spacy.io)
-- Fuzzy matching: [RapidFuzz](https://github.com/maxbachmann/RapidFuzz)
-- Geospatial calculations: [GeoPy](https://geopy.readthedocs.io/)
-
----
-
-**Last Updated**: October 2025  
-**Maintainer**: [Subhi Arjariae](https://github.com/subhiarjaria18/AIS_project/edit/main/README.md)
-
+- **NLP Framework:** [spaCy](https://spacy.io)
+- **Fuzzy Matching:** [RapidFuzz](https://github.com/maxbachmann/RapidFuzz)
+- **Geospatial:** [GeoPy](https://geopy.readthedocs.io/)
+- **AIS Data:** [NOAA](https://coast.noaa.gov/)
