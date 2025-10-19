@@ -469,5 +469,6 @@ If you use this project in research or production, please cite:
 
 ---
 
-**Last Updated**: January 2025  
-**Maintainer**: [Your Name](https://github.com/yourusername)
+**Last Updated**: October 2025  
+**Maintainer**: [Subhi Arjariae](https://github.com/subhiarjaria18/AIS_project/edit/main/README.md)
+
