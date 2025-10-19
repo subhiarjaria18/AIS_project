@@ -196,13 +196,11 @@ Flags inconsistent movement if:
 ## Project Structure
 
 ```
-AIS_project/
-├── ais_nlp_intent.ipynb       # Main implementation & examples
-├── requirements.txt            # Dependencies
-├── README.md                   # This file
-├── data/
-│   └── AIS_2020_01_01.csv     # Sample AIS dataset
-└── vessel_map.html            # Output map visualization
+├── README.md
+├── ais_nlp_intent.ipynb
+├── requirements.txt
+├── setup_env.ps1
+└── vessel_map.html
 ```
 
 ---
@@ -330,3 +328,4 @@ MIT License - see LICENSE file for details
 - **Fuzzy Matching:** [RapidFuzz](https://github.com/maxbachmann/RapidFuzz)
 - **Geospatial:** [GeoPy](https://geopy.readthedocs.io/)
 - **AIS Data:** [NOAA](https://coast.noaa.gov/)
+
